@@ -1,0 +1,39 @@
+{
+  "cidade": "João Pessoa",
+  "uf": "PB",
+  "centro": [
+    -34.863,
+    -7.1195
+  ],
+  "zoom": 12,
+  "fontePontos": "Notícias policiais geocodificadas por bairro (Portal Correio e Paraíba.com)",
+  "periodo": "16/11/2025 a 16/11/2026",
+  "totalNoticias": 241,
+  "oficial": [
+    {
+      "indicador": "CVLI em João Pessoa (2025)",
+      "valor": 233,
+      "fonte": "Anuário da Segurança e Defesa Social 2025 — SESDS/PB",
+      "link": "https://paraiba.pb.gov.br/diretas/secretaria-da-seguranca-e-defesa-social"
+    },
+    {
+      "indicador": "CVLI em João Pessoa (1º semestre de 2025)",
+      "valor": 119,
+      "fonte": "SESDS/PB — mapa temático de CVLI por município (Datawrapper)",
+      "link": "https://datawrapper.dwcdn.net/mq70E/9/"
+    },
+    {
+      "indicador": "Homicídios na Paraíba (2025, preliminar)",
+      "valor": 1004,
+      "fonte": "DataSUS/SIM, compilado pelo Crime Brasil",
+      "link": "https://crimebrasil.com.br/cidade/pb/joao-pessoa"
+    }
+  ],
+  "limitacoes": [
+    "A Paraíba não disponibiliza microdados de boletins de ocorrência por bairro.",
+    "Os pontos representam notícias policiais publicadas pela imprensa, não o universo de ocorrências.",
+    "A localização é aproximada: o ponto é gerado dentro do polígono do bairro citado na notícia.",
+    "Casos sem bairro identificado ou de outros municípios foram excluídos.",
+    "A amostra é influenciada pela cobertura jornalística e não serve para comparar bairros como se fosse estatística oficial."
+  ]
+}

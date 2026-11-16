@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#060a12" />
+  <title>Observatório JP — Mapa de Crimes de João Pessoa</title>
+  <meta name="description" content="Protótipo de mapa interativo de crimes noticiados em João Pessoa, com filtros por período, tipo de crime e bairro, mapa de pontos, mapa de calor e coroplético por bairro." />
+  <meta property="og:title" content="Observatório JP — Mapa de Crimes de João Pessoa" />
+  <meta property="og:description" content="Uma leitura geográfica das notícias policiais de João Pessoa nos últimos 12 meses." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23070b14'/%3E%3Cpath d='M32 10c-9 0-16 7-16 16 0 12 16 28 16 28s16-16 16-28c0-9-7-16-16-16z' fill='%23f59e0b'/%3E%3Ccircle cx='32' cy='26' r='6' fill='%23070b14'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Observatório JP">
+      <span class="brand-mark">◉</span>
+      <span class="brand-text">Observatório <strong>JP</strong></span>
+    </a>
+    <nav class="nav" aria-label="Navegação principal">
+      <a href="#mapa">Mapa</a>
+      <a href="#panorama">Panorama</a>
+      <a href="#sobre">Sobre os dados</a>
+      <a href="#metodologia">Metodologia</a>
+    </nav>
+    <span class="pill pill-demo">Protótipo demonstrativo</span>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">João Pessoa · Paraíba · nov/2025 – nov/2026</span>
+        <h1>O crime na cidade,<br /><em>bairro por bairro.</em></h1>
+        <p class="hero-sub">
+          Um mapa interativo das <strong>notícias policiais</strong> de João Pessoa.
+          Filtre por período, tipo de crime e bairro; alterne entre pontos, calor,
+          crime predominante e densidade.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#mapa">Explorar o mapa <span aria-hidden="true">→</span></a>
+          <a class="btn btn-ghost" href="#sobre">Entender os dados</a>
+        </div>
+        <p class="hero-note">
+          <span class="dot-live"></span>
+          Amostra de <strong id="heroCount">—</strong> notícias geocodificadas por bairro.
+          Não é o universo de ocorrências.
+        </p>
+      </div>
+
+      <div class="hero-panel" aria-label="Indicadores oficiais de contexto">
+        <div class="hero-panel-head">
+          <span>Contexto oficial</span>
+          <span class="tag">SESDS/PB</span>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value">233</div>
+          <div class="hero-stat-label">CVLI em João Pessoa em 2025</div>
+          <div class="hero-stat-source">Anuário da Segurança e Defesa Social 2025</div>
+        </div>
+        <div class="hero-stat-row">
+          <div class="hero-stat small">
+            <div class="hero-stat-value">119</div>
+            <div class="hero-stat-label">CVLI no 1º semestre de 2025</div>
+          </div>
+          <div class="hero-stat small">
+            <div class="hero-stat-value">1.004</div>
+            <div class="hero-stat-label">Homicídios na PB em 2025*</div>
+          </div>
+        </div>
+        <div class="hero-panel-foot">
+          *Dado preliminar do DataSUS/SIM. Os números oficiais não são comparáveis
+          diretamente à amostra de notícias do mapa.
+        </div>
+      </div>
+    </section>
+
+    <div class="notice" role="note">
+      <div class="notice-icon" aria-hidden="true">!</div>
+      <div>
+        <strong>Leia antes de interpretar.</strong>
+        A Paraíba não publica microdados de boletins de ocorrência por bairro.
+        Os pontos deste protótipo vêm de <strong>notícias públicas</strong> (Portal Correio e Paraíba.com),
+        geocodificadas de forma aproximada no polígono do bairro citado. A cobertura da imprensa
+        não representa todas as ocorrências e não deve ser usada para comparar bairros como se fosse
+        estatística oficial. <a href="#metodologia">Ver metodologia</a>.
+      </div>
+    </div>
+
+    <section class="dashboard" id="mapa">
+      <aside class="filters" aria-label="Filtros do mapa">
+        <div class="filters-head">
+          <div>
+            <span class="eyebrow small">Explorar</span>
+            <h2>Filtros</h2>
+          </div>
+          <button class="btn-reset" id="resetFilters" type="button" title="Limpar filtros">Limpar</button>
+        </div>
+
+        <div class="field">
+          <label for="period">Período</label>
+          <select id="period">
+            <option value="30">Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="180">Últimos 6 meses</option>
+            <option value="365" selected>Últimos 12 meses</option>
+            <option value="all">Todo o período</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <div class="field-label-row">
+            <label>Tipo de crime</label>
+            <button class="link-btn" id="toggleAllTypes" type="button">Todos</button>
+          </div>
+          <div class="type-list" id="typeList"></div>
+        </div>
+
+        <div class="field">
+          <label for="bairro">Bairro</label>
+          <select id="bairro">
+            <option value="all">Todos os bairros</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Camada do mapa</label>
+          <div class="segmented" role="group" aria-label="Camada do mapa">
+            <button type="button" class="seg active" data-mode="points">Pontos</button>
+            <button type="button" class="seg" data-mode="predominant">Predominante</button>
+            <button type="button" class="seg" data-mode="density">Densidade</button>
+            <button type="button" class="seg" data-mode="heat">Calor</button>
+          </div>
+        </div>
+
+        <div class="filter-summary" id="filterSummary" aria-live="polite"></div>
+
+        <div class="filters-foot">
+          <a class="btn btn-ghost small" href="data/incidents.json" download>Baixar dados (JSON)</a>
+          <a class="link-btn" href="#sobre">Fontes e limitações</a>
+        </div>
+      </aside>
+
+      <div class="map-panel">
+        <div class="map-toolbar">
+          <div>
+            <span class="eyebrow small" id="mapEyebrow">Camada · pontos</span>
+            <h2 id="mapTitle">Ocorrências noticiadas</h2>
+          </div>
+          <div class="map-toolbar-right">
+            <span class="map-count" id="mapCount">—</span>
+            <button class="icon-btn" id="fitMap" type="button" title="Centralizar no município" aria-label="Centralizar no município">⤢</button>
+          </div>
+        </div>
+        <div id="map" role="application" aria-label="Mapa interativo de crimes noticiados em João Pessoa"></div>
+        <div class="map-legend" id="mapLegend" aria-label="Legenda do mapa"></div>
+        <div class="map-empty" id="mapEmpty" hidden>
+          <strong>Nenhuma notícia com esses filtros.</strong>
+          <span>Tente ampliar o período ou selecionar outros tipos de crime.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panorama" id="panorama">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Panorama</span>
+          <h2>O que a amostra mostra</h2>
+        </div>
+        <p class="section-sub">
+          Indicadores calculados apenas sobre as notícias filtradas. Eles descrevem
+          a cobertura jornalística, não a criminalidade real do município.
+        </p>
+      </div>
+
+      <div class="kpis" id="kpis">
+        <div class="kpi">
+          <span class="kpi-label">Notícias mapeadas</span>
+          <strong class="kpi-value" id="kpiTotal">—</strong>
+          <span class="kpi-foot" id="kpiPeriod">—</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Tipo mais frequente</span>
+          <strong class="kpi-value small" id="kpiType">—</strong>
+          <span class="kpi-foot" id="kpiTypeCount">—</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Bairro com mais registros</span>
+          <strong class="kpi-value small" id="kpiBairro">—</strong>
+          <span class="kpi-foot" id="kpiBairroCount">—</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Bairros com registros</span>
+          <strong class="kpi-value" id="kpiCoverage">—</strong>
+          <span class="kpi-foot">de 64 bairros de João Pessoa</span>
+        </div>
+      </div>
+
+      <div class="charts">
+        <article class="chart-card">
+          <div class="chart-head">
+            <h3>Série mensal</h3>
+            <span class="chart-hint">notícias por mês</span>
+          </div>
+          <div class="chart-wrap"><canvas id="chartMonth" role="img" aria-label="Gráfico de notícias por mês"></canvas></div>
+        </article>
+        <article class="chart-card">
+          <div class="chart-head">
+            <h3>Tipos de crime</h3>
+            <span class="chart-hint">distribuição da amostra</span>
+          </div>
+          <div class="chart-wrap"><canvas id="chartTypes" role="img" aria-label="Gráfico de distribuição por tipo de crime"></canvas></div>
+        </article>
+        <article class="chart-card">
+          <div class="chart-head">
+            <h3>Bairros com mais registros</h3>
+            <span class="chart-hint">top 10</span>
+          </div>
+          <div class="chart-wrap"><canvas id="chartBairros" role="img" aria-label="Gráfico de bairros com mais notícias"></canvas></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="incidents" id="ultimas">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Últimas notícias</span>
+          <h2>Ocorrências na amostra</h2>
+        </div>
+        <p class="section-sub">
+          Cada cartão leva à notícia original. A localização é aproximada: o ponto
+          é gerado dentro do bairro citado, não no endereço exato.
+        </p>
+      </div>
+      <div class="incident-list" id="incidentList"></div>
+      <div class="incident-more">
+        <button class="btn btn-ghost" id="showMore" type="button">Mostrar mais</button>
+      </div>
+    </section>
+
+    <section class="about" id="sobre">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Transparência</span>
+          <h2>Sobre os dados</h2>
+        </div>
+        <p class="section-sub">
+          Este é um protótipo de demonstração. O objetivo é mostrar a experiência
+          de um observatório urbano — não substituir estatísticas oficiais.
+        </p>
+      </div>
+
+      <div class="about-grid">
+        <article class="about-card">
+          <h3>O que é real</h3>
+          <p>
+            Os títulos, datas, veículos e links são reais. As notícias foram coletadas
+            das editorias policiais do <strong>Portal Correio</strong> e do
+            <strong>Paraíba.com</strong>, entre 16/11/2025 e 16/11/2026, e filtradas
+            para menções a João Pessoa e seus bairros.
+          </p>
+          <p>
+            Os polígonos dos 64 bairros vêm do geoportal <strong>Filipeia</strong>,
+            da Prefeitura de João Pessoa. A área de cada bairro é usada para calcular
+            a densidade de notícias por km².
+          </p>
+        </article>
+        <article class="about-card">
+          <h3>O que é aproximado</h3>
+          <p>
+            A localização é <strong>aproximada</strong>: o ponto é sorteado dentro do
+            polígono do bairro citado na notícia. Não há geocodificação do endereço
+            exato. Bairros citados apenas de passagem, sem relação com o local do
+            crime, podem gerar ruído.
+          </p>
+          <p>
+            A classificação do tipo de crime é feita por palavras-chave no título e
+            no início do texto. Casos ambíguos podem ser classificados de forma
+            imperfeita.
+          </p>
+        </article>
+        <article class="about-card">
+          <h3>O que não é</h3>
+          <p>
+            Não é um registro oficial de ocorrências, não mede subnotificação e não
+            serve para afirmar que um bairro é “mais violento” que outro. A imprensa
+            cobre de forma desigual: crimes com vítimas, operações e fatos de grande
+            repercussão têm mais chance de virar notícia.
+          </p>
+          <p>
+            A Paraíba não disponibiliza microdados de boletins de ocorrência por
+            bairro. Por isso, o mapa usa notícias — e não dados policiais — como
+            camada de pontos.
+          </p>
+        </article>
+      </div>
+
+      <div class="official" aria-label="Indicadores oficiais">
+        <div class="official-head">
+          <div>
+            <span class="eyebrow">Para contexto</span>
+            <h3>Indicadores oficiais</h3>
+          </div>
+          <p>
+            Números agregados de fontes oficiais. Eles não foram usados para gerar
+            os pontos do mapa; servem para dimensionar o fenômeno.
+          </p>
+        </div>
+        <div class="official-grid" id="officialGrid"></div>
+      </div>
+    </section>
+
+    <section class="method" id="metodologia">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Como foi feito</span>
+          <h2>Metodologia</h2>
+        </div>
+        <p class="section-sub">
+          Um pipeline simples, reproduzível e transparente — adequado a um
+          protótipo, não a uma estatística oficial.
+        </p>
+      </div>
+      <ol class="steps">
+        <li>
+          <span class="step-num">01</span>
+          <div>
+            <h3>Coleta</h3>
+            <p>Leitura das APIs públicas de posts do Portal Correio e do Paraíba.com, nas editorias policiais, entre 16/11/2025 e 16/11/2026.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">02</span>
+          <div>
+            <h3>Filtro geográfico</h3>
+            <p>Manutenção de notícias que citam João Pessoa ou um dos 64 bairros; exclusão de casos de outros municípios e de assuntos sem relação com crimes.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">03</span>
+          <div>
+            <h3>Classificação</h3>
+            <p>Regras de palavras-chave no título e no lead para separar homicídio, feminicídio, crime sexual, roubo/assalto, furto, tráfico, violência doméstica, tiroteio, sequestro e operação policial.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">04</span>
+          <div>
+            <h3>Geocodificação aproximada</h3>
+            <p>Identificação do bairro citado e geração de um ponto aleatório dentro do polígono do bairro. O ponto representa a área do bairro, não o endereço do fato.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">05</span>
+          <div>
+            <h3>Agregação</h3>
+            <p>Cálculo de contagens por bairro, tipo e mês; densidade = notícias por km²; crime predominante = tipo mais frequente no bairro, com critério de desempate por gravidade.</p>
+          </div>
+        </li>
+        <li>
+          <span class="step-num">06</span>
+          <div>
+            <h3>Privacidade</h3>
+            <p>O site não coleta dados pessoais dos visitantes nem cria perfis de vítimas, suspeitos ou testemunhas. Exibe o título e um trecho da notícia original, que podem mencionar nomes públicos; o conteúdo completo e o contexto ficam no link do veículo.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="sources" id="fontes">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">Referências</span>
+          <h2>Fontes</h2>
+        </div>
+      </div>
+      <div class="source-grid">
+        <a class="source-card" href="https://portalcorreio.com.br/" target="_blank" rel="noopener">
+          <strong>Portal Correio</strong>
+          <span>Notícias policiais · editoria Policial</span>
+        </a>
+        <a class="source-card" href="https://paraiba.com.br/" target="_blank" rel="noopener">
+          <strong>Paraíba.com</strong>
+          <span>Notícias policiais · editoria Policial</span>
+        </a>
+        <a class="source-card" href="https://filipeia.joaopessoa.pb.gov.br/" target="_blank" rel="noopener">
+          <strong>Filipeia / Prefeitura de João Pessoa</strong>
+          <span>Limites dos 64 bairros</span>
+        </a>
+        <a class="source-card" href="https://paraiba.pb.gov.br/diretas/secretaria-da-seguranca-e-defesa-social" target="_blank" rel="noopener">
+          <strong>SESDS/PB</strong>
+          <span>Anuário da Segurança e Defesa Social 2025</span>
+        </a>
+        <a class="source-card" href="https://datawrapper.dwcdn.net/mq70E/9/" target="_blank" rel="noopener">
+          <strong>SESDS/PB · CVLI por município</strong>
+          <span>Mapa temático · 1º semestre de 2025</span>
+        </a>
+        <a class="source-card" href="https://crimebrasil.com.br/cidade/pb/joao-pessoa" target="_blank" rel="noopener">
+          <strong>Crime Brasil / DataSUS</strong>
+          <span>Homicídios na Paraíba · 2025 preliminar</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>
+      <strong>Observatório JP</strong>
+      <span>Protótipo demonstrativo · novembro de 2026</span>
+    </div>
+    <div class="footer-right">
+      <a href="#top">Voltar ao topo ↑</a>
+      <span>Dados públicos · conteúdo jornalístico com link para a fonte</span>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
